@@ -1,18 +1,17 @@
-
 #include "FileManager.h"
 
-#include <sstream>
-#include <filesystem>
-#include <cstdio>
-#include <limits>
+#include <fstream>
+#include <iostream>
 
-namespace fs = std::filesystem;
+// Longest record has 7 fields, so 10 is plenty
+const int MAX_FIELDS = 10;
 
-// Data directory
-const string DATA_FOLDER = "data/";
+// ------------------------------------
+// PRIVATE HELPERS
+// ------------------------------------
 
-// Check whether a field contains invalid separators
-bool isValidField(const string& value) {
+// A field must not contain the separator '|' or a line break
+bool FileManager::isValidField(const string& value) const {
 
     return value.find('|') == string::npos &&
            value.find('\n') == string::npos &&
@@ -20,91 +19,73 @@ bool isValidField(const string& value) {
 
 }
 
-// Split a line using the | separator
-vector<string> splitLine(const string& line) {
+// An ID must also not be empty
+bool FileManager::isValidID(const string& value) const {
 
-    vector<string> fields;
-    string field;
-    stringstream ss(line);
-
-    while (getline(ss, field, '|')) {
-        fields.push_back(field);
-    }
-
-    return fields;
+    return !value.empty() && isValidField(value);
 
 }
 
-// Safely replace a file using a temporary file and backup
-template <typename Writer>
-bool writeFileSafely(const string& filename, Writer writer) {
+// Split a line at every '|' and store the pieces in fields[].
+// Empty pieces are kept (for example "S2|Ben|" gives 3 fields).
+// Returns the number of fields, or maxFields + 1 if there are too many.
+int FileManager::splitLine(const string& line, string fields[], int maxFields) const {
 
-    try {
+    int count = 0;
+    size_t start = 0;
 
-        fs::create_directories(DATA_FOLDER);
+    while (true) {
 
-        string tempFile = filename + ".tmp";
-        string backupFile = filename + ".bak";
+        size_t pos = line.find('|', start);
+        string piece;
 
-        // Write new information to a temporary file
-        ofstream file(tempFile);
-
-        if (!file.is_open()) {
-            cout << "Error: Cannot create temporary file.\n";
-            return false;
+        if (pos == string::npos) {
+            piece = line.substr(start);
+        }
+        else {
+            piece = line.substr(start, pos - start);
         }
 
-        writer(file);
-
-        file.close();
-
-        if (!file) {
-            fs::remove(tempFile);
-            cout << "Error: Writing failed.\n";
-            return false;
+        if (count >= maxFields) {
+            return maxFields + 1;
         }
 
-        // Back up the existing file
-        bool hadOriginal = fs::exists(filename);
+        fields[count] = piece;
+        count++;
 
-        if (hadOriginal) {
-
-            fs::remove(backupFile);
-            fs::rename(filename, backupFile);
-
+        if (pos == string::npos) {
+            break;
         }
 
-        // Replace the original file
-        try {
-
-            fs::rename(tempFile, filename);
-
-        }
-        catch (...) {
-
-            // Restore the original file if replacement fails
-            if (hadOriginal && fs::exists(backupFile)) {
-                fs::rename(backupFile, filename);
-            }
-
-            throw;
-
-        }
-
-        // Remove backup after successful replacement
-        if (hadOriginal) {
-            fs::remove(backupFile);
-        }
-
-        return true;
+        start = pos + 1;
 
     }
-    catch (const exception& e) {
 
-        cout << "File error: " << e.what() << endl;
+    return count;
+
+}
+
+// Convert text such as "3" into the number 3.
+// Returns false if the text is empty, too long or has a non-digit.
+bool FileManager::parseNumber(const string& text, int& value) const {
+
+    if (text.empty() || text.length() > 4) {
         return false;
+    }
+
+    value = 0;
+
+    for (size_t i = 0; i < text.length(); i++) {
+
+        if (text[i] < '0' || text[i] > '9') {
+            return false;
+        }
+
+        value = value * 10 + (text[i] - '0');
 
     }
+
+    return true;
 
 }
 
@@ -112,32 +93,47 @@ bool writeFileSafely(const string& filename, Writer writer) {
 // SAVE STUDENTS
 // ------------------------------------
 
-bool FileManager::saveStudents(
-    const vector<FileStudent>& students
-) {
+bool FileManager::saveStudents(const FileStudent students[], int count) {
 
-    return writeFileSafely(
-        DATA_FOLDER + "students.txt",
-        [&](ofstream& file) {
+    // Check every record BEFORE opening the file,
+    // so a bad record cannot leave a half-written file
+    for (int i = 0; i < count; i++) {
 
-            for (const auto& student : students) {
+        if (!isValidID(students[i].studentID) ||
+            !isValidField(students[i].name) ||
+            !isValidField(students[i].email)) {
 
-                if (!isValidField(student.studentID) ||
-                    !isValidField(student.name) ||
-                    !isValidField(student.email)) {
-
-                    throw runtime_error("Invalid student information.");
-
-                }
-
-                file << student.studentID << "|"
-                     << student.name << "|"
-                     << student.email << "\n";
-
-            }
+            cout << "Error: Invalid student information (ID: "
+                 << students[i].studentID << ").\n";
+            return false;
 
         }
-    );
+
+    }
+
+    ofstream file("students.txt");
+
+    if (!file.is_open()) {
+        cout << "Error: Cannot open students.txt for writing.\n";
+        return false;
+    }
+
+    for (int i = 0; i < count; i++) {
+
+        file << students[i].studentID << "|"
+             << students[i].name << "|"
+             << students[i].email << "\n";
+
+    }
+
+    file.close();
+
+    if (file.fail()) {
+        cout << "Error: Writing students.txt failed.\n";
+        return false;
+    }
+
+    return true;
 
 }
 
@@ -145,40 +141,53 @@ bool FileManager::saveStudents(
 // SAVE COURSES
 // ------------------------------------
 
-bool FileManager::saveCourses(
-    const vector<FileCourse>& courses
-) {
+bool FileManager::saveCourses(const FileCourse courses[], int count) {
 
-    return writeFileSafely(
-        DATA_FOLDER + "courses.txt",
-        [&](ofstream& file) {
+    for (int i = 0; i < count; i++) {
 
-            for (const auto& course : courses) {
+        if (!isValidID(courses[i].courseID) ||
+            !isValidField(courses[i].courseName) ||
+            !isValidField(courses[i].instructor) ||
+            !isValidField(courses[i].day) ||
+            !isValidField(courses[i].startTime) ||
+            !isValidField(courses[i].endTime) ||
+            courses[i].credits < 0) {
 
-                if (!isValidField(course.courseID) ||
-                    !isValidField(course.courseName) ||
-                    !isValidField(course.instructor) ||
-                    !isValidField(course.day) ||
-                    !isValidField(course.startTime) ||
-                    !isValidField(course.endTime) ||
-                    course.credits < 0) {
-
-                    throw runtime_error("Invalid course information.");
-
-                }
-
-                file << course.courseID << "|"
-                     << course.courseName << "|"
-                     << course.credits << "|"
-                     << course.instructor << "|"
-                     << course.day << "|"
-                     << course.startTime << "|"
-                     << course.endTime << "\n";
-
-            }
+            cout << "Error: Invalid course information (ID: "
+                 << courses[i].courseID << ").\n";
+            return false;
 
         }
-    );
+
+    }
+
+    ofstream file("courses.txt");
+
+    if (!file.is_open()) {
+        cout << "Error: Cannot open courses.txt for writing.\n";
+        return false;
+    }
+
+    for (int i = 0; i < count; i++) {
+
+        file << courses[i].courseID << "|"
+             << courses[i].courseName << "|"
+             << courses[i].credits << "|"
+             << courses[i].instructor << "|"
+             << courses[i].day << "|"
+             << courses[i].startTime << "|"
+             << courses[i].endTime << "\n";
+
+    }
+
+    file.close();
+
+    if (file.fail()) {
+        cout << "Error: Writing courses.txt failed.\n";
+        return false;
+    }
+
+    return true;
 
 }
 
@@ -186,32 +195,45 @@ bool FileManager::saveCourses(
 // SAVE REGISTRATIONS
 // ------------------------------------
 
-bool FileManager::saveRegistrations(
-    const vector<FileRegistration>& registrations
-) {
+bool FileManager::saveRegistrations(const FileRegistration registrations[], int count) {
 
-    return writeFileSafely(
-        DATA_FOLDER + "registrations.txt",
-        [&](ofstream& file) {
+    for (int i = 0; i < count; i++) {
 
-            for (const auto& registration : registrations) {
+        if (!isValidID(registrations[i].registrationID) ||
+            !isValidID(registrations[i].studentID) ||
+            !isValidID(registrations[i].courseID)) {
 
-                if (!isValidField(registration.registrationID) ||
-                    !isValidField(registration.studentID) ||
-                    !isValidField(registration.courseID)) {
-
-                    throw runtime_error("Invalid registration information.");
-
-                }
-
-                file << registration.registrationID << "|"
-                     << registration.studentID << "|"
-                     << registration.courseID << "\n";
-
-            }
+            cout << "Error: Invalid registration information (ID: "
+                 << registrations[i].registrationID << ").\n";
+            return false;
 
         }
-    );
+
+    }
+
+    ofstream file("registrations.txt");
+
+    if (!file.is_open()) {
+        cout << "Error: Cannot open registrations.txt for writing.\n";
+        return false;
+    }
+
+    for (int i = 0; i < count; i++) {
+
+        file << registrations[i].registrationID << "|"
+             << registrations[i].studentID << "|"
+             << registrations[i].courseID << "\n";
+
+    }
+
+    file.close();
+
+    if (file.fail()) {
+        cout << "Error: Writing registrations.txt failed.\n";
+        return false;
+    }
+
+    return true;
 
 }
 
@@ -219,54 +241,57 @@ bool FileManager::saveRegistrations(
 // LOAD STUDENTS
 // ------------------------------------
 
-bool FileManager::loadStudents(
-    vector<FileStudent>& students
-) {
+bool FileManager::loadStudents(FileStudent students[], int& count) {
 
-    ifstream file(DATA_FOLDER + "students.txt");
+    ifstream file("students.txt");
 
     if (!file.is_open()) {
-
         cout << "Warning: students.txt not found.\n";
         return false;
-
     }
 
-    vector<FileStudent> loadedStudents;
+    count = 0;
+
     string line;
+    string fields[MAX_FIELDS];
     bool valid = true;
+    int lineNumber = 0;
 
     while (getline(file, line)) {
 
-        if (line.empty()) continue;
+        lineNumber++;
 
-        vector<string> fields = splitLine(line);
-
-        if (fields.size() != 3) {
-
-            cout << "Invalid student record skipped.\n";
-            valid = false;
-            continue;
-
+        // Remove the extra '\r' that Windows files may have
+        if (!line.empty() && line[line.length() - 1] == '\r') {
+            line.erase(line.length() - 1);
         }
 
-        loadedStudents.push_back({
-            fields[0],
-            fields[1],
-            fields[2]
-        });
+        if (line.empty()) continue;
+
+        int fieldCount = splitLine(line, fields, MAX_FIELDS);
+
+        if (fieldCount != 3 || !isValidID(fields[0])) {
+            cout << "Invalid student record skipped (line " << lineNumber << ").\n";
+            valid = false;
+            continue;
+        }
+
+        if (count >= MAX_STUDENTS) {
+            cout << "Warning: too many students, the rest were ignored.\n";
+            valid = false;
+            break;
+        }
+
+        students[count].studentID = fields[0];
+        students[count].name = fields[1];
+        students[count].email = fields[2];
+        count++;
 
     }
 
-    if (file.bad()) {
-        cout << "Error reading students.txt.\n";
-        return false;
-    }
+    file.close();
 
-    students.swap(loadedStudents);
-
-    cout << "Students loaded: "
-         << students.size() << endl;
+    cout << "Students loaded: " << count << endl;
 
     return valid;
 
@@ -276,76 +301,64 @@ bool FileManager::loadStudents(
 // LOAD COURSES
 // ------------------------------------
 
-bool FileManager::loadCourses(
-    vector<FileCourse>& courses
-) {
+bool FileManager::loadCourses(FileCourse courses[], int& count) {
 
-    ifstream file(DATA_FOLDER + "courses.txt");
+    ifstream file("courses.txt");
 
     if (!file.is_open()) {
-
         cout << "Warning: courses.txt not found.\n";
         return false;
-
     }
 
-    vector<FileCourse> loadedCourses;
+    count = 0;
+
     string line;
+    string fields[MAX_FIELDS];
     bool valid = true;
+    int lineNumber = 0;
 
     while (getline(file, line)) {
 
+        lineNumber++;
+
+        if (!line.empty() && line[line.length() - 1] == '\r') {
+            line.erase(line.length() - 1);
+        }
+
         if (line.empty()) continue;
 
-        vector<string> fields = splitLine(line);
+        int fieldCount = splitLine(line, fields, MAX_FIELDS);
+        int credits = 0;
 
-        if (fields.size() != 7) {
+        if (fieldCount != 7 || !isValidID(fields[0]) ||
+            !parseNumber(fields[2], credits)) {
 
-            cout << "Invalid course record skipped.\n";
+            cout << "Invalid course record skipped (line " << lineNumber << ").\n";
             valid = false;
             continue;
 
         }
 
-        try {
-
-            size_t position = 0;
-
-            int credits = stoi(fields[2], &position);
-
-            if (position != fields[2].size() || credits < 0) {
-                throw invalid_argument("Invalid credits");
-            }
-
-            loadedCourses.push_back({
-                fields[0],
-                fields[1],
-                credits,
-                fields[3],
-                fields[4],
-                fields[5],
-                fields[6]
-            });
-
-        }
-        catch (...) {
-
-            cout << "Invalid course record skipped.\n";
+        if (count >= MAX_COURSES) {
+            cout << "Warning: too many courses, the rest were ignored.\n";
             valid = false;
-
+            break;
         }
 
+        courses[count].courseID = fields[0];
+        courses[count].courseName = fields[1];
+        courses[count].credits = credits;
+        courses[count].instructor = fields[3];
+        courses[count].day = fields[4];
+        courses[count].startTime = fields[5];
+        courses[count].endTime = fields[6];
+        count++;
+
     }
 
-    if (file.bad()) {
-        cout << "Error reading courses.txt.\n";
-        return false;
-    }
+    file.close();
 
-    courses.swap(loadedCourses);
-
-    cout << "Courses loaded: "
-         << courses.size() << endl;
+    cout << "Courses loaded: " << count << endl;
 
     return valid;
 
@@ -355,54 +368,59 @@ bool FileManager::loadCourses(
 // LOAD REGISTRATIONS
 // ------------------------------------
 
-bool FileManager::loadRegistrations(
-    vector<FileRegistration>& registrations
-) {
+bool FileManager::loadRegistrations(FileRegistration registrations[], int& count) {
 
-    ifstream file(DATA_FOLDER + "registrations.txt");
+    ifstream file("registrations.txt");
 
     if (!file.is_open()) {
-
         cout << "Warning: registrations.txt not found.\n";
         return false;
-
     }
 
-    vector<FileRegistration> loadedRegistrations;
+    count = 0;
+
     string line;
+    string fields[MAX_FIELDS];
     bool valid = true;
+    int lineNumber = 0;
 
     while (getline(file, line)) {
 
+        lineNumber++;
+
+        if (!line.empty() && line[line.length() - 1] == '\r') {
+            line.erase(line.length() - 1);
+        }
+
         if (line.empty()) continue;
 
-        vector<string> fields = splitLine(line);
+        int fieldCount = splitLine(line, fields, MAX_FIELDS);
 
-        if (fields.size() != 3) {
+        if (fieldCount != 3 || !isValidID(fields[0]) ||
+            !isValidID(fields[1]) || !isValidID(fields[2])) {
 
-            cout << "Invalid registration record skipped.\n";
+            cout << "Invalid registration record skipped (line " << lineNumber << ").\n";
             valid = false;
             continue;
 
         }
 
-        loadedRegistrations.push_back({
-            fields[0],
-            fields[1],
-            fields[2]
-        });
+        if (count >= MAX_REGISTRATIONS) {
+            cout << "Warning: too many registrations, the rest were ignored.\n";
+            valid = false;
+            break;
+        }
+
+        registrations[count].registrationID = fields[0];
+        registrations[count].studentID = fields[1];
+        registrations[count].courseID = fields[2];
+        count++;
 
     }
 
-    if (file.bad()) {
-        cout << "Error reading registrations.txt.\n";
-        return false;
-    }
+    file.close();
 
-    registrations.swap(loadedRegistrations);
-
-    cout << "Registrations loaded: "
-         << registrations.size() << endl;
+    cout << "Registrations loaded: " << count << endl;
 
     return valid;
 
@@ -412,23 +430,20 @@ bool FileManager::loadRegistrations(
 // SAVE ALL DATA
 // ------------------------------------
 
-bool FileManager::saveData(
-    const vector<FileStudent>& students,
-    const vector<FileCourse>& courses,
-    const vector<FileRegistration>& registrations
-) {
+bool FileManager::saveData(const FileStudent students[], int studentCount,
+                           const FileCourse courses[], int courseCount,
+                           const FileRegistration registrations[], int registrationCount) {
 
     cout << "\nSaving all data...\n";
 
-    bool studentsSaved = saveStudents(students);
-    bool coursesSaved = saveCourses(courses);
-    bool registrationsSaved = saveRegistrations(registrations);
+    // All three are attempted, even if one of them fails
+    bool studentsSaved = saveStudents(students, studentCount);
+    bool coursesSaved = saveCourses(courses, courseCount);
+    bool registrationsSaved = saveRegistrations(registrations, registrationCount);
 
     if (studentsSaved && coursesSaved && registrationsSaved) {
-
         cout << "\nAll data saved successfully!\n";
         return true;
-
     }
 
     cout << "\nSome data could not be saved.\n";
@@ -440,27 +455,22 @@ bool FileManager::saveData(
 // LOAD ALL DATA
 // ------------------------------------
 
-bool FileManager::loadData(
-    vector<FileStudent>& students,
-    vector<FileCourse>& courses,
-    vector<FileRegistration>& registrations
-) {
+bool FileManager::loadData(FileStudent students[], int& studentCount,
+                           FileCourse courses[], int& courseCount,
+                           FileRegistration registrations[], int& registrationCount) {
 
     cout << "\nLoading saved data...\n";
 
-    bool studentsLoaded = loadStudents(students);
-    bool coursesLoaded = loadCourses(courses);
-    bool registrationsLoaded = loadRegistrations(registrations);
+    bool studentsLoaded = loadStudents(students, studentCount);
+    bool coursesLoaded = loadCourses(courses, courseCount);
+    bool registrationsLoaded = loadRegistrations(registrations, registrationCount);
 
     if (studentsLoaded && coursesLoaded && registrationsLoaded) {
-
         cout << "\nAll data loaded successfully!\n";
         return true;
-
     }
 
     cout << "\nSome data could not be loaded.\n";
     return false;
 
 }
-

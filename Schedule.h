@@ -1,48 +1,49 @@
-
 #ifndef SCHEDULE_H
 #define SCHEDULE_H
 
-#include <iostream>
-#include <vector>
 #include <string>
-
+#include "FileManager.h"   // for FileCourse and FileRegistration (temporary)
 using namespace std;
 
-// Temporary course information for independent development
-// This can later be adapted to the group's actual Course class.
+// A student can register for at most this many courses
+const int MAX_SCHEDULE_COURSES = 20;
 
+// TEMPORARY course type used by the schedule
 struct ScheduleCourse {
     string courseID;
     string courseName;
-    string day;
-    string startTime;
-    string endTime;
+    string day;        // "Monday" ... "Sunday"
+    string startTime;  // "HH:MM" (24-hour)
+    string endTime;    // "HH:MM" (24-hour)
 };
 
-// Schedule class
 class Schedule {
-
 private:
     string studentID;
-    vector<ScheduleCourse> registeredCourses;
+    ScheduleCourse registeredCourses[MAX_SCHEDULE_COURSES];
+    int courseCount;
+
+    // Helper functions
+    bool readNumber(const string& text, int& value) const;
+    int convertToMinutes(const string& timeText) const;
+    string formatTime(int totalMinutes) const;
+    string normalizeDay(string day) const;
+    int getDayOrder(const string& day) const;
+    bool comesAfter(const ScheduleCourse& a, const ScheduleCourse& b) const;
+    bool addCourse(ScheduleCourse course);
 
 public:
+    Schedule(const string& id);
 
-    // Constructor
-    Schedule(string id);
+    // Independent-development version: the courses given belong to this student.
+    void retrieveCourses(const ScheduleCourse courses[], int count);
 
-    // Retrieve courses registered by a student
-    void retrieveCourses(
-        const vector<ScheduleCourse>& allCourses
-    );
+    // Real version: pick this student's registrations and look up each course.
+    void retrieveCourses(const FileRegistration registrations[], int registrationCount,
+                         const FileCourse courses[], int courseCount);
 
-    // Display the student's weekly schedule
     void viewSchedule() const;
-
-    // Check for overlapping courses
     bool checkScheduleConflict() const;
-
 };
 
 #endif
-
