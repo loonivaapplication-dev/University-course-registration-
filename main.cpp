@@ -5,9 +5,10 @@
 
 int main() {
 
-    FileStudent students[2] = {
+    FileStudent students[3] = {
         {"S1", "Ava", "ava@uni.edu"},
-        {"S2", "Ben", ""}                    // empty email on purpose
+        {"S2", "Ben", ""},
+        {"S3","Toothless", "tooduu@uni.edu"},                    // empty email on purpose
     };
 
     FileCourse courses[4] = {
@@ -17,10 +18,10 @@ int main() {
         {"C4", "Art",     1, "Dr. D", "Friday", "08:00", "09:00"}
     };
 
-    FileRegistration registrations[6] = {
+    FileRegistration registrations[8] = {
         {"R1", "S1", "C1"}, {"R2", "S1", "C2"}, {"R3", "S1", "C3"},
         {"R4", "S1", "C4"}, {"R5", "S2", "C4"},
-        {"R6", "S1", "C9"}                    // C9 does not exist
+        {"R6", "S1", "C9"}, {"R7", "S3", "C2"}, {"R7", "S3", "C3"}    ,              // C9 does not exist
     };
 
     FileManager manager;
@@ -41,6 +42,13 @@ int main() {
                              loadedCourses, courseCount);
     schedule.viewSchedule();
     schedule.checkScheduleConflict();
+
+    Schedule schedule3("S3");
+
+    schedule3.retrieveCourses(loadedRegistrations, registrationCount,
+                          loadedCourses, courseCount);
+    schedule3.viewSchedule();
+    schedule3.checkScheduleConflict();
 
     return 0;
 }
