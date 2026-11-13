@@ -1,0 +1,4 @@
+C1|Math|3|Dr. A|monday|09:00|10:30
+C2|Physics|3|Dr. B|Monday|10:00|11:30
+C3|History|2|Dr. C|Monday|11:30|12:30
+C4|Art|1|Dr. D|Friday|08:00|09:00
