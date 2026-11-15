@@ -1,27 +1,44 @@
 
-#include "User.h"
+#ifndef USER_IMPLEMENTATION
+#define USER_IMPLEMENTATION
+
 #include <iostream>
+#include <string>
+using namespace std;
 
-User::User() {}
+class User {
+private:
+    string name;
+    string email;
+    string password;
 
-User::User(const std::string& name,
-           const std::string& email,
-           const std::string& password)
-    : name(name), email(email), password(password) {}
+public:
+    User() = default;
 
-std::string User::getName() const {
-    return name;
-}
+    User(string n, string e, string p) {
+        name = n;
+        email = e;
+        password = p;
+    }
 
-std::string User::getEmail() const {
-    return email;
-}
+    virtual ~User() = default;
 
-bool User::checkPassword(const std::string& input) const {
-    return password == input;
-}
+    string getName() const {
+        return name;
+    }
 
-void User::displayProfile() const {
-    std::cout << "Name: " << name << '\n';
-    std::cout << "Email: " << email << '\n';
-}
+    string getEmail() const {
+        return email;
+    }
+
+    bool checkPassword(const string& p) const {
+        return password == p;
+    }
+
+    virtual void displayProfile() const {
+        cout << "Name: " << name << endl;
+        cout << "Email: " << email << endl;
+    }
+};
+
+#endif

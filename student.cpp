@@ -1,102 +1,278 @@
 
-#include "Student.h"
+#include "user.cpp"
 #include <iostream>
+#include <string>
+#include <vector>
+#include <regex>
+#include <cctype>
 #include <limits>
+using namespace std;
 
-std::vector<Student> Student::students;
+class Student : public User {
+private:
+    string studentID;
+    static vector<Student> students;
 
-Student::Student() {}
+    
+static bool validID(const string& id) {
+    if (id.empty()) return false;
 
-Student::Student(const std::string& id,
-                 const std::string& name,
-                 const std::string& email,
-                 const std::string& password)
-    : User(name, email, password), studentID(id) {}
-
-std::string Student::getStudentID() const {
-    return studentID;
-}
-
-Student* Student::findStudent(const std::string& id) {
-    for (Student& student : students) {
-        if (student.getStudentID() == id) {
-            return &student;
-        }
-    }
-    return nullptr;
-}
-
-void Student::createAccount() {
-    std::string id, name, email, password;
-
-    std::cout << "\n--- Student Registration ---\n";
-
-    std::cout << "Enter Student ID: ";
-    std::getline(std::cin >> std::ws, id);
-
-    if (id.empty() || findStudent(id) != nullptr) {
-        std::cout << "Invalid or duplicate Student ID!\n";
-        return;
-    }
-
-    std::cout << "Enter Name: ";
-    std::getline(std::cin, name);
-
-    std::cout << "Enter Email: ";
-    std::getline(std::cin, email);
-
-    for (const Student& student : students) {
-        if (student.getEmail() == email) {
-            std::cout << "Email already registered!\n";
-            return;
+    for (unsigned char c : id) {
+        if (!isdigit(c)) {
+            return false;
         }
     }
 
-    if (name.empty() || email.empty() ||
-        email.find('@') == std::string::npos) {
-        std::cout << "Invalid name or email!\n";
+    return true;
+}
+
+
+    static bool validName(const string& name) {
+        if (name.empty()) return false;
+
+        bool hasLetter = false;
+
+        for (unsigned char c : name) {
+            if (isalpha(c)) {
+                hasLetter = true;
+            } else if (!isspace(c) && c != '-' && c != '\'') {
+                return false;
+            }
+        }
+        return hasLetter;
+    }
+
+    static bool validEmail(const string& email) {
+        regex pattern(
+            R"(^[A-Za-z0-9_%+\-]+(\.[A-Za-z0-9_%+\-]+)*@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$)"
+        );
+        return regex_match(email, pattern);
+    }
+
+    static bool validPassword(const string& password) {
+        if (password.length() < 8) return false;
+
+        bool upper = false;
+        bool lower = false;
+        bool digit = false;
+
+        for (unsigned char c : password) {
+            if (isupper(c)) upper = true;
+            if (islower(c)) lower = true;
+            if (isdigit(c)) digit = true;
+        }
+
+        return upper && lower && digit;
+    }
+
+public:
+    Student() = default;
+
+    Student(string id, string n, string e, string p)
+        : User(n, e, p), studentID(id) {}
+
+    string getStudentID() const {
+        return studentID;
+    }
+
+    static const Student* findStudent(const string& id) {
+        for (const Student& s : students) {
+            if (s.getStudentID() == id) {
+                return &s;
+            }
+        }
+        return nullptr;
+    }
+
+static void displayAllStudents() {
+    if (students.empty()) {
+        cout << "No students registered!\n";
         return;
     }
 
-    std::cout << "Enter Password: ";
-    std::getline(std::cin, password);
+    cout << "\n--- All Registered Students ---\n";
 
-    if (password.empty()) {
-        std::cout << "Password cannot be empty!\n";
-        return;
+    for (const Student& s : students) {
+        cout << "Student ID: " << s.getStudentID() << endl;
+        cout << "Name: " << s.getName() << endl;
+        cout << "Email: " << s.getEmail() << endl;
+        cout << "--------------------------\n";
     }
-
-    students.emplace_back(id, name, email, password);
-
-    std::cout << "Account created successfully!\n";
 }
 
-bool Student::login() {
-    std::string id, password;
 
-    std::cout << "\n--- Student Login ---\n";
+    void createAccount() {
+        string id, name, email, password;
 
-    std::cout << "Enter Student ID: ";
-    std::cin >> id;
+        cout << "\n--- Student Registration ---\n";
 
-    std::cout << "Enter Password: ";
-    std::cin >> password;
+        while (true) {
+            cout << "Enter Student ID: ";
+            if (!getline(cin, id)) return;
 
-    Student* student = findStudent(id);
+            
+        if (!validID(id)) {
+            cout << "Invalid Student ID! Numbers only (0-9).\n";
+        }
+        else if (findStudent(id)) {
+                cout << "Student ID already exists!\n";
+            } else {
+                break;
+            }
+        }
 
-    if (student != nullptr &&
-        student->checkPassword(password)) {
-        std::cout << "Login successful! Welcome, "
-                  << student->getName() << "!\n";
-        return true;
+        while (true) {
+            cout << "Enter Name: ";
+            if (!getline(cin, name)) return;
+
+            if (validName(name)) break;
+
+            cout << "Invalid name! Use letters, not numbers.\n";
+        }
+
+        while (true) {
+            cout << "Enter Email: ";
+            if (!getline(cin, email)) return;
+
+            if (!validEmail(email)) {
+                cout << "Invalid email! Example: nisha@gmail.com\n";
+                continue;
+            }
+
+            bool duplicate = false;
+
+            for (const Student& s : students) {
+                if (s.getEmail() == email) {
+                    duplicate = true;
+                    break;
+                }
+            }
+
+            if (duplicate) {
+                cout << "Email already registered!\n";
+            } else {
+                break;
+            }
+        }
+
+        while (true) {
+            cout << "Enter Password: ";
+            if (!getline(cin, password)) return;
+
+            if (validPassword(password)) break;
+
+            cout << "Password needs at least 8 characters, "
+                    "uppercase, lowercase and a number.\n";
+        }
+
+        students.emplace_back(id, name, email, password);
+
+        cout << "\nAccount created successfully!\n";
     }
 
-    std::cout << "Invalid Student ID or Password!\n";
-    return false;
-}
+    bool login(string& loggedInID) {
+        string id, password;
+        loggedInID.clear();
 
-void Student::displayProfile() const {
-    std::cout << "\n--- Student Profile ---\n";
-    std::cout << "Student ID: " << studentID << '\n';
-    User::displayProfile();
+        cout << "\n--- Student Login ---\n";
+
+        cout << "Enter Student ID: ";
+        if (!getline(cin, id)) return false;
+
+        cout << "Enter Password: ";
+        if (!getline(cin, password)) return false;
+
+        const Student* s = findStudent(id);
+
+        if (s && s->checkPassword(password)) {
+            loggedInID = id;
+            cout << "Login successful! Welcome, "
+                 << s->getName() << "!\n";
+            return true;
+        }
+
+        cout << "Invalid Student ID or Password!\n";
+        return false;
+    }
+
+    bool login() {
+        string id;
+        return login(id);
+    }
+
+    void displayProfile() const override {
+        cout << "\n--- Student Profile ---\n";
+        cout << "Student ID: " << studentID << endl;
+        User::displayProfile();
+    }
+};
+
+vector<Student> Student::students;
+
+int main() {
+    Student student;
+    string loggedInID;
+    int choice;
+
+    while (true) {
+        cout << "\n--- Student Management ---\n";
+        cout << "1. Create Account\n";
+        cout << "2. Login\n";
+        cout << "3. View My Profile\n";
+        cout << "4. Logout\n";
+        cout << "5. Exit\n";
+        cout << "Enter choice: ";
+
+        if (!(cin >> choice)) {
+            if (cin.eof()) break;
+
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+
+            cout << "Invalid choice! Enter a number.\n";
+            continue;
+        }
+
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+
+        switch (choice) {
+            case 1:
+                student.createAccount();
+                break;
+
+            case 2:
+                student.login(loggedInID);
+                break;
+
+            case 3: {
+                if (loggedInID.empty()) {
+                    cout << "Please login first!\n";
+                    break;
+                }
+
+                const Student* s = Student::findStudent(loggedInID);
+
+                if (s) {
+                    s->displayProfile();
+                } else {
+                    cout << "Student not found!\n";
+                }
+                break;
+            }
+
+            case 4:
+                loggedInID.clear();
+                cout << "Logged out successfully!\n";
+                break;
+
+            case 5:
+                cout << "Goodbye!\n";
+                return 0;
+
+            default:
+                cout << "Invalid menu choice!\n";
+        }
+    }
+
+    return 0;
 }
