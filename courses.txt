@@ -1,0 +1,6 @@
+
+CS101|Introduction to Programming|3|Mr. Kim|40|10
+CS102|Data Structures|3|Mr. Lee|35|15
+CS103|Database Systems|3|Ms. Park|30|12
+CS104|Computer Networks|3|Mr. Choi|40|20
+CS105|Artificial Intelligence|3|Ms. Jung|25|5
