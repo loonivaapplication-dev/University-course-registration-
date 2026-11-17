@@ -76,7 +76,7 @@ void Course::loadCourses() {
             !getline(ss, creditText, '|') ||
             !getline(ss, teacher, '|') ||
             !getline(ss, capacityText, '|') ||
-            !getline(ss, enrolledText)) {
+            !getline(ss, enrolledText, '|')) {
             continue;
         }
 
