@@ -243,14 +243,14 @@ bool FileManager::saveRegistrations(const FileRegistration registrations[], int 
 
 bool FileManager::loadStudents(FileStudent students[], int& count) {
 
+    count = 0;   // set first, so the caller never sees an uninitialised count
+
     ifstream file("students.txt");
 
     if (!file.is_open()) {
         cout << "Warning: students.txt not found.\n";
         return false;
     }
-
-    count = 0;
 
     string line;
     string fields[MAX_FIELDS];
@@ -303,14 +303,14 @@ bool FileManager::loadStudents(FileStudent students[], int& count) {
 
 bool FileManager::loadCourses(FileCourse courses[], int& count) {
 
+    count = 0;   // set first, so the caller never sees an uninitialised count
+
     ifstream file("courses.txt");
 
     if (!file.is_open()) {
         cout << "Warning: courses.txt not found.\n";
         return false;
     }
-
-    count = 0;
 
     string line;
     string fields[MAX_FIELDS];
@@ -370,14 +370,14 @@ bool FileManager::loadCourses(FileCourse courses[], int& count) {
 
 bool FileManager::loadRegistrations(FileRegistration registrations[], int& count) {
 
+    count = 0;   // set first, so the caller never sees an uninitialised count
+
     ifstream file("registrations.txt");
 
     if (!file.is_open()) {
         cout << "Warning: registrations.txt not found.\n";
         return false;
     }
-
-    count = 0;
 
     string line;
     string fields[MAX_FIELDS];
