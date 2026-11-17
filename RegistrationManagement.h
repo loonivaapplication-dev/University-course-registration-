@@ -4,46 +4,53 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <stdexcept>
+
+#include "FileManager.h"   // FileStudent, FileCourse, FileRegistration, FileManager
+#include "Schedule.h"
 
 using namespace std;
 
-struct Student {
-    string studentID;
-    string studentName;
-};
-
-struct Course {
-    string courseID;
-    string courseName;
-    int capacity;
-};
-
-struct Registration {
-    string studentID;
-    string courseID;
-};
+// courses.txt has no capacity column, so every course gets this many seats.
+const int DEFAULT_CAPACITY = 30;
 
 class RegistrationManagement {
 private:
-    vector<Student> students;
-    vector<Course> courses;
-    vector<Registration> registrations;
+    vector<FileStudent> students;
+    vector<FileCourse> courses;
+    vector<FileRegistration> registrations;
+    FileManager fileManager;
 
-    bool studentExists(string studentID);
-    bool courseExists(string courseID);
-    int countRegisteredStudents(string courseID);
+    int findStudent(const string& id) const;
+    int findCourse(const string& id) const;
+    int countRegisteredStudents(const string& courseID) const;
+    string newRegistrationID() const;
+    bool saveAll();
 
 public:
-    void addStudent(Student student);
-    void addCourse(Course course);
+    // Load everything from students.txt, courses.txt, registrations.txt
+    void loadAll();
 
-    void registerCourse(string studentID, string courseID);
-    void dropCourse(string studentID, string courseID);
+    bool studentExists(const string& studentID) const;
+    bool courseExists(const string& courseID) const;
 
-    int getAvailableSeats(string courseID);
+    bool addStudent(const FileStudent& student);
 
-    void displayRegistrations();
+    bool addCourse(const FileCourse& course);
+    bool editCourse(const FileCourse& course);   // matched by courseID
+    bool deleteCourse(const string& courseID);   // also removes its registrations
+
+    bool registerCourse(const string& studentID, const string& courseID);
+    bool dropCourse(const string& studentID, const string& courseID);
+
+    int getAvailableSeats(const string& courseID) const;
+
+    void displayStudents() const;
+    void displayCourses() const;
+    void displayRegistrations() const;
+
+    // Uses the Schedule class
+    void viewSchedule(const string& studentID) const;
+    bool checkScheduleConflict(const string& studentID) const;
 };
 
 #endif
