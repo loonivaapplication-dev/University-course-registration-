@@ -7,6 +7,9 @@
 
 class Course {
 private:
+    std::string day;
+    std::string startTime;
+    std::string endTime;
     std::string courseID;
     std::string courseName;
     int credits;
@@ -24,8 +27,11 @@ public:
     Course();
 
     Course(std::string id, std::string name,
-           int courseCredits, std::string teacher,
-           int courseCapacity, int enrolled = 0);
+       int courseCredits, std::string teacher,
+       int courseCapacity, int enrolled,
+       std::string courseDay,
+       std::string start,
+       std::string end);
 
     static void addCourse();
     static void editCourse();
