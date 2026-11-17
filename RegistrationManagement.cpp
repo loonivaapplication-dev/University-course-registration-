@@ -19,14 +19,6 @@ int RegistrationManagement::findCourse(const string& id) const {
     return -1;
 }
 
-int RegistrationManagement::countRegisteredStudents(const string& courseID) const {
-    int count = 0;
-    for (size_t i = 0; i < registrations.size(); i++) {
-        if (registrations[i].courseID == courseID) count++;
-    }
-    return count;
-}
-
 // Registration IDs look like R1, R2, ... and are never reused
 string RegistrationManagement::newRegistrationID() const {
     int n = (int)registrations.size() + 1;
@@ -109,7 +101,9 @@ bool RegistrationManagement::addCourse(const FileCourse& course) {
     if (course.courseID.empty() || !safeText(course.courseID) ||
         !safeText(course.courseName) || !safeText(course.instructor) ||
         !safeText(course.day) || !safeText(course.startTime) ||
-        !safeText(course.endTime) || course.credits <= 0) {
+        !safeText(course.endTime) || course.credits <= 0 ||
+        course.capacity <= 0 || course.enrolledStudents < 0 ||
+        course.enrolledStudents > course.capacity) {
         cout << "Invalid course information!\n";
         return false;
     }
@@ -135,12 +129,16 @@ bool RegistrationManagement::editCourse(const FileCourse& course) {
     }
     if (!safeText(course.courseName) || !safeText(course.instructor) ||
         !safeText(course.day) || !safeText(course.startTime) ||
-        !safeText(course.endTime) || course.credits <= 0) {
-        cout << "Invalid course information!\n";
+        !safeText(course.endTime) || course.credits <= 0 ||
+        course.capacity < courses[index].enrolledStudents ||
+        course.capacity <= 0) {
+        cout << "Invalid course information (capacity must be positive and not below enrolled students)!\n";
         return false;
     }
 
-    courses[index] = course;
+    FileCourse updated = course;
+    updated.enrolledStudents = courses[index].enrolledStudents;   // the count is managed by register/drop
+    courses[index] = updated;
     cout << "Course updated successfully!\n";
     return saveAll();
 }
@@ -202,6 +200,7 @@ bool RegistrationManagement::registerCourse(const string& studentID, const strin
     reg.studentID = studentID;
     reg.courseID = courseID;
     registrations.push_back(reg);
+    courses[findCourse(courseID)].enrolledStudents++;
 
     cout << "Registration successful!\n";
 
@@ -219,6 +218,11 @@ bool RegistrationManagement::dropCourse(const string& studentID, const string& c
 
             registrations.erase(registrations.begin() + i);
 
+            int c = findCourse(courseID);
+            if (c != -1 && courses[c].enrolledStudents > 0) {
+                courses[c].enrolledStudents--;
+            }
+
             cout << "Course dropped successfully!\n";
             cout << "One seat is now available.\n";
             return saveAll();
@@ -234,7 +238,7 @@ int RegistrationManagement::getAvailableSeats(const string& courseID) const {
         cout << "Course does not exist!\n";
         return -1;
     }
-    return DEFAULT_CAPACITY - countRegisteredStudents(courseID);
+    return courses[findCourse(courseID)].capacity - courses[findCourse(courseID)].enrolledStudents;
 }
 
 // ------------------------------------
@@ -267,8 +271,8 @@ void RegistrationManagement::displayCourses() const {
              << "\nCredits: " << c.credits
              << "\nInstructor: " << c.instructor
              << "\nTime: " << c.day << " " << c.startTime << " - " << c.endTime
-             << "\nAvailable Seats: " << (DEFAULT_CAPACITY - countRegisteredStudents(c.courseID))
-             << " / " << DEFAULT_CAPACITY
+             << "\nAvailable Seats: " << (c.capacity - c.enrolledStudents)
+             << " / " << c.capacity
              << "\n---------------------------------\n";
     }
 }

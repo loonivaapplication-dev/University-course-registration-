@@ -3,7 +3,7 @@
 #include <fstream>
 #include <iostream>
 
-// Longest record has 7 fields, so 10 is plenty
+// Longest record has 9 fields, so 10 is plenty
 const int MAX_FIELDS = 10;
 
 // ------------------------------------
@@ -151,7 +151,10 @@ bool FileManager::saveCourses(const FileCourse courses[], int count) {
             !isValidField(courses[i].day) ||
             !isValidField(courses[i].startTime) ||
             !isValidField(courses[i].endTime) ||
-            courses[i].credits < 0) {
+            courses[i].credits < 0 ||
+            courses[i].capacity < 0 ||
+            courses[i].enrolledStudents < 0 ||
+            courses[i].enrolledStudents > courses[i].capacity) {
 
             cout << "Error: Invalid course information (ID: "
                  << courses[i].courseID << ").\n";
@@ -174,6 +177,8 @@ bool FileManager::saveCourses(const FileCourse courses[], int count) {
              << courses[i].courseName << "|"
              << courses[i].credits << "|"
              << courses[i].instructor << "|"
+             << courses[i].capacity << "|"
+             << courses[i].enrolledStudents << "|"
              << courses[i].day << "|"
              << courses[i].startTime << "|"
              << courses[i].endTime << "\n";
@@ -329,9 +334,14 @@ bool FileManager::loadCourses(FileCourse courses[], int& count) {
 
         int fieldCount = splitLine(line, fields, MAX_FIELDS);
         int credits = 0;
+        int capacity = 0;
+        int enrolled = 0;
 
-        if (fieldCount != 7 || !isValidID(fields[0]) ||
-            !parseNumber(fields[2], credits)) {
+        if (fieldCount != 9 || !isValidID(fields[0]) ||
+            !parseNumber(fields[2], credits) ||
+            !parseNumber(fields[4], capacity) ||
+            !parseNumber(fields[5], enrolled) ||
+            enrolled > capacity) {
 
             cout << "Invalid course record skipped (line " << lineNumber << ").\n";
             valid = false;
@@ -349,9 +359,11 @@ bool FileManager::loadCourses(FileCourse courses[], int& count) {
         courses[count].courseName = fields[1];
         courses[count].credits = credits;
         courses[count].instructor = fields[3];
-        courses[count].day = fields[4];
-        courses[count].startTime = fields[5];
-        courses[count].endTime = fields[6];
+        courses[count].capacity = capacity;
+        courses[count].enrolledStudents = enrolled;
+        courses[count].day = fields[6];
+        courses[count].startTime = fields[7];
+        courses[count].endTime = fields[8];
         count++;
 
     }

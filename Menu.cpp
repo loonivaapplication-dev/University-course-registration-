@@ -1,14 +1,113 @@
 #include "Menu.h"
 #include "Admin.h"
-#include <limits>
+#include "Input.h"
 
-//displays the main menu
+// ------------------------------------
+// STUDENT LOGIN
+// ------------------------------------
+
+void Menu::studentLogin() {
+
+    string id;
+
+    cout << "\n---- STUDENT LOGIN ----" << endl;
+
+    if (!readLine("Enter your Student ID: ", id)) return;
+
+    if (id.empty() || !safeText(id)) {
+        cout << "Invalid Student ID!" << endl;
+        return;
+    }
+
+    if (!system.studentExists(id)) {
+
+        string answer;
+        cout << "No student with this ID was found." << endl;
+
+        if (!readLine("Create a new account? (y/n): ", answer)) return;
+        if (answer != "y" && answer != "Y") return;
+
+        FileStudent student;
+        student.studentID = id;
+
+        if (!readLine("Full name: ", student.name)) return;
+        if (!readLine("Email: ", student.email)) return;
+
+        if (!system.addStudent(student)) return;   // prints the reason
+    }
+
+    cout << "\nWelcome, student " << id << "!" << endl;
+    studentMenu(id);
+}
+
+// ------------------------------------
+// STUDENT MENU
+// ------------------------------------
+
+void Menu::studentMenu(const string& studentID) {
+
+    int choice;
+
+    while (true) {
+
+        cout << "\n===== STUDENT MENU (" << studentID << ") =====" << endl;
+        cout << "1. View Available Courses" << endl;
+        cout << "2. Register for a Course" << endl;
+        cout << "3. Drop a Course" << endl;
+        cout << "4. View My Schedule" << endl;
+        cout << "5. Check Schedule Conflicts" << endl;
+        cout << "0. Logout" << endl;
+
+        if (!readInt("Enter your choice: ", choice)) return;
+
+        string courseID;
+
+        switch (choice) {
+
+            case 1:
+                system.displayCourses();
+                break;
+
+            case 2:
+                if (!readLine("Enter Course ID to register: ", courseID)) return;
+                system.registerCourse(studentID, courseID);
+                break;
+
+            case 3:
+                if (!readLine("Enter Course ID to drop: ", courseID)) return;
+                system.dropCourse(studentID, courseID);
+                break;
+
+            case 4:
+                system.viewSchedule(studentID);
+                break;
+
+            case 5:
+                system.checkScheduleConflict(studentID);
+                break;
+
+            case 0:
+                cout << "Student logged out successfully!" << endl;
+                return;
+
+            default:
+                cout << "Invalid choice! Please try again." << endl;
+        }
+    }
+}
+
+// ------------------------------------
+// MAIN MENU
+// ------------------------------------
+
 void Menu::displayMainMenu() {
 
     int choice;
-    Admin admin; //create admin obj
+    Admin admin(system);
 
-    // Keep displaying the menu until the user exits
+    // Load saved students, courses and registrations once at start-up
+    system.loadAll();
+
     while (true) {
 
         cout << "\n===== UNIVERSITY COURSE REGISTRATION SYSTEM =====" << endl;
@@ -16,43 +115,25 @@ void Menu::displayMainMenu() {
         cout << "2. Admin Login" << endl;
         cout << "0. Exit" << endl;
 
-        cout << "Enter your choice: ";
+        if (!readInt("Enter your choice: ", choice)) return;
 
-        // Check whether the input is a valid integer
-        if (!(cin >> choice)) {
-
-            // Clear the input error
-            cin.clear();
-
-            // Remove invalid input from the input buffer
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
-
-            cout << "Invalid input! Please enter a number." << endl;
-            continue;
-        }
-      
         switch (choice) {
 
             case 1:
-                cout << "\nStudent login will be connected here." << endl;
+                studentLogin();
                 break;
 
             case 2:
-                // Check admin login credentials 
                 if (admin.adminLogin()) {
-
-                    // Open admin menu only after successful login
                     admin.adminMenu();
                 }
                 break;
 
             case 0:
-                // Exit the entire system
                 cout << "\nThank you for using the system!" << endl;
                 return;
 
             default:
-                // Handle invalid menu selections
                 cout << "Invalid choice! Please select 0, 1, or 2." << endl;
         }
     }
